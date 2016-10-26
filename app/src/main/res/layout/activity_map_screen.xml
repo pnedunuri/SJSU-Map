@@ -14,11 +14,12 @@
     <ImageView
         app:srcCompat="@drawable/campusmap"
         android:id="@+id/campus_map"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_alignParentLeft="false"
+        android:layout_alignParentStart="false"
+        android:layout_alignParentTop="false"
+        android:adjustViewBounds="false"
         android:scaleType="fitXY" />
 
     <ImageView
@@ -26,6 +27,21 @@
         android:layout_height="wrap_content"
         app:srcCompat="@drawable/campusmap_colored"
         android:id="@+id/overlayInvisible"
-        android:scaleType="fitXY"
+        android:visibility="invisible"
+        android:adjustViewBounds="false"
+        android:scaleType="fitXY" />
+
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:srcCompat="@drawable/destination_marker"
+        android:id="@+id/destinationMarker"
         android:visibility="invisible" />
+
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:srcCompat="@drawable/user_location_marker"
+        android:visibility="invisible"
+        android:id="@+id/userMarker" />
 </RelativeLayout>

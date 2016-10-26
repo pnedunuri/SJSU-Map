@@ -63,6 +63,176 @@ public class Constants {
     public static final int CVB = CVA + 1;
     public static final int NO_OF_BUILDINGS = CVB + 1;
 
+    // COORDINATE INDEXES
+    public static final byte LEFT_INDEX = 0;
+    public static final byte TOP_INDEX = LEFT_INDEX + 1;
+    public static final byte RIGHT_INDEX = TOP_INDEX + 1;
+    public static final byte DOWN_INDEX = RIGHT_INDEX + 1;
+    public static final byte NUM_DIR_INDEXES = DOWN_INDEX + 1;
+
+    public static final int[] MAP_RESOLUTION = {
+            0, 0, 607, 654
+    };
+
+    public static final int[][] MAP_BUILDINGS_COORDS = {
+            {
+                    530, 27, 580, 125
+            },
+            {
+                    56, 172, 112, 255
+            },
+            {
+                    130, 174, 166, 218
+            },
+            {
+                    192, 172, 234, 190
+            },
+            {
+                    192, 204, 232, 224
+            },
+            {
+                    260, 172, 295, 193
+            },
+            {
+                    261, 203, 294, 220
+            },
+            {
+                    205, 243, 228, 255
+            },
+            {
+                    250, 240, 300, 272
+            },
+            {
+                    340, 180, 408, 250
+            },
+            {
+                    450, 181, 470, 250
+            },
+            {
+                    530, 173, 545, 195
+            },
+            {
+                    545, 210, 580, 235
+            },
+            {
+                    535, 263, 560, 290
+            },
+            {
+                    62, 266, 75, 308
+            },
+            {
+                    65, 355, 110, 365
+            },
+            {
+                    164, 292, 213, 327
+            },
+            {
+                    187, 344, 244, 368
+            },
+            {
+                    290, 303, 301, 375
+            },
+            {
+                    326, 286, 418, 332
+            },
+            {
+                    440, 285, 488, 331
+            },
+            {
+                    332, 346, 400, 385
+            },
+            {
+                    416, 348, 480, 387
+            },
+            {
+                    555, 304, 587, 382
+            },
+            {
+                    535, 358, 585, 380
+            },
+            {
+                    43, 390, 100, 444
+            },
+            {
+                    118, 378, 147, 408
+            },
+            {
+                    168, 390, 222, 402
+            },
+            {
+                    122, 414, 190, 447
+            },
+            {
+                    207, 416, 262, 449
+            },
+            {
+                    285, 403, 302, 448
+            },
+            {
+                    328, 403, 436, 453
+            },
+            {
+                    464, 406, 490, 460
+            },
+            {
+                    533, 400, 574, 458
+            },
+            {
+                    43, 485, 69, 609
+            },
+            {
+                    105, 478, 136, 516
+            },
+            {
+                    84, 543, 152, 611
+            },
+            {
+                    177, 485, 224, 532
+            },
+            {
+                    243, 481, 298, 527
+            },
+            {
+                    190, 553, 260, 608
+            },
+            {
+                    290, 585, 301, 607
+            },
+            {
+                    373, 490, 394, 494
+            },
+            {
+                    326, 505, 390, 528
+            },
+            {
+                    320, 538, 388, 569
+            },
+            {
+                    325, 585, 392, 628
+            },
+            {
+                    422, 474, 450, 544
+            },
+            {
+                    422, 570, 447, 611
+            },
+            {
+                    480, 500, 492, 533
+            },
+            {
+                    480, 572, 490, 614
+            },
+            {
+                    525, 479, 544, 508
+            },
+            {
+                    525, 568, 547, 617
+            },
+            {
+                    570, 517, 587, 553
+            }
+    };
+
     // COLOR INDEXES
     public static final byte RED_COLOR_INDEX = 0;
     public static final byte GREEN_COLOR_INDEX = RED_COLOR_INDEX + 1;
@@ -284,14 +454,6 @@ public class Constants {
             "CVA_BUILDING",
             "CVB_BUILDING"
     };
-
-    // COORDINATE INDEXES
-    public static final byte LEFT_INDEX = 0;
-    public static final byte TOP_INDEX = LEFT_INDEX + 1;
-    public static final byte RIGHT_INDEX = TOP_INDEX + 1;
-    public static final byte DOWN_INDEX = RIGHT_INDEX + 1;
-    public static final byte NUM_DIR_INDEXES = DOWN_INDEX + 1;
-
 
     // Building Co-Ordinates Original
     public static final double BUILDING_COORDINATES_POTRAIT[][] = {
