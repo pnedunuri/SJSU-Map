@@ -233,6 +233,68 @@ public class Constants {
             }
     };
 
+    // LATITUDE, LONGITUDE INDEXES
+    public static final byte LATITUDE_INDEX = 0;
+    public static final byte LONGITUDE_INDEX = LATITUDE_INDEX + 1;
+
+    // LATITUDE LONGITUDE
+    public static final double[][] LATITUDE_LONGITUDE = {
+            {
+                    37.339652, -121.8813852
+            },
+            {
+                    37.3353515, -121.8849847
+            },
+            {
+                    37.3358133, -121.8842735
+            },
+            {
+                    37.336262, -121.8840542
+            },
+            {
+                    37.336262, -121.8840542
+            },
+            {
+                    37.3365174, -121.883104
+            },
+            {
+                    37.3365174, -121.883104
+            },
+            {
+                    37.3359359, -121.8833193
+            },
+            {
+                    37.3359148,-121.8825466
+            },
+            {
+                    37.3370102, -121.8816004
+            },
+            {
+                    37.3375895, -121.8806028
+            },
+            {
+                    37.3381504, -121.8805641
+            },
+            {
+                    37.3382457, -121.8793369
+            },
+            {
+                    37.3373684, -121.8797704
+            },
+            {
+                    37.3347153, -121.8847462
+            },
+            {
+                    37.3341805, -121.8842148
+            },
+            {
+                    37.3352958, -121.8834068
+            },
+            {
+                    37.339652, -121.8813852 // dummy
+            }
+    };
+
     // COLOR INDEXES
     public static final byte RED_COLOR_INDEX = 0;
     public static final byte GREEN_COLOR_INDEX = RED_COLOR_INDEX + 1;
@@ -614,4 +676,10 @@ public class Constants {
                     238.15733466358463, 309.9581912309742, 258.23695512752965, 376.2103019685225
             }
     };
+
+    // API KEY is embedded to the url
+    // replace usrLoc with user Latitude and Logitude
+    // similarly replace destLoc with the requested destination location
+    public static final String MAPS_API_REQUEST_URI = "https://maps.googleapis.com/maps/api/distancematrix/json";
+    public static final String MAPS_API_REQUEST_QUERY = "mode=walking&units=imperial&origins=usrLoc&destinations=destLoc&key=AIzaSyCSaSsWaBVTYpDLZxa7kcwl_rhRJg8xRJI";
 }

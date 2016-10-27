@@ -1,11 +1,13 @@
 package edu.sjsu.cmpe277.org.sjsumap;
 
+import android.app.Activity;
 import android.app.SearchManager;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.SearchView;
@@ -21,7 +23,7 @@ import android.widget.RelativeLayout;
 
 public class MapScreenActivity extends AppCompatActivity implements Runnable{
 
-    public static Context context = null;
+    public static Activity me = null;
 
     public static float pxPerInch = 0;
 
@@ -35,14 +37,17 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
     public static String searchString = null;
     private String prevString = null;
 
-    private boolean isAppRunning = false;
+    private volatile boolean isAppRunning = false;
+
+    private volatile GPSTracker gpsTracker = null;
+    private volatile boolean gpsTrackerPrompted = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map_screen);
 
-        context = getApplicationContext();
+        me = this;
 
         DisplayMetrics metrics = new DisplayMetrics();
         getWindowManager().getDefaultDisplay().getMetrics(metrics);
@@ -72,6 +77,8 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
         isAppRunning = true;
 
         new Thread(this).start();
+
+        gpsTracker = new GPSTracker(this);
     }
 
     @Override
@@ -268,7 +275,41 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
     public void run() {
         while(isAppRunning) {
             initMap();
-            
+
+            if (gpsTracker == null)
+            {
+                return;
+            }
+
+            // fetch location
+            if(gpsTracker.canGetLocation()) {
+                double latitude = gpsTracker.getLatitude();
+                double longitude = gpsTracker.getLongitude();
+                if (latitude == 0) {
+                    gpsTracker.getLocation();
+                }
+
+                int bIndex = 0;
+                for (bIndex = 0; bIndex < Constants.LATITUDE_LONGITUDE.length; bIndex++) {
+                    double x = Math.abs(Constants.LATITUDE_LONGITUDE[bIndex][Constants.LATITUDE_INDEX] - latitude);
+                    double y = Math.abs(Constants.LATITUDE_LONGITUDE[bIndex][Constants.LONGITUDE_INDEX] - longitude);
+
+                    Log.d("TAG", x + "," + y);
+                }
+            } else if(!gpsTrackerPrompted && !gpsTracker.permissionFailed) {
+                // can't get location
+                // GPS or Network is not enabled
+                // Ask user to enable GPS/network in settings
+                gpsTrackerPrompted = true;
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        gpsTracker.showSettingsAlert();
+                    }
+                });
+            }
+
             if (searchString != prevString) {
                 searchString = searchString.toUpperCase();
                 prevString = searchString;
@@ -280,6 +321,7 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
                     for (int bIndedx = 0; bIndedx < Constants.NO_OF_BUILDINGS; bIndedx++) {
                         if (Constants.BUILDING_NAMES[bIndedx].equals(searchString)) {
                             final int index = bIndedx;
+
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
@@ -341,8 +383,6 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
                 int blue = Color.blue(pixel);
                 colors[Constants.BLUE_COLOR_INDEX] = blue;
 
-//                Log.d("COLOR", red + ", " + green + ", " + blue);
-
                 int buildingIndex = -1;
                 for(int index = 0; index < Constants.NO_OF_BUILDINGS; index++) {
                     boolean buildingIdentified = true;
@@ -361,10 +401,37 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
                     }
                 }
 
+                if (buildingIndex != -1) {
+                    final int buildingIndexCopy = buildingIndex;
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            new GeoLocationFetcher().execute(buildingIndexCopy);
+                        }
+                    });
+                }
+
                 Log.d("Building Index", buildingIndex + "");
             }
 
             return true;
+        }
+
+        private class GeoLocationFetcher extends AsyncTask<Integer, Void, String> {
+            protected String doInBackground(Integer... buildingIndex) {
+
+                String query = Constants.MAPS_API_REQUEST_QUERY;
+                String usrLoc = Constants.LATITUDE_LONGITUDE[buildingIndex[0]][Constants.LATITUDE_INDEX] + "," + Constants.LATITUDE_LONGITUDE[buildingIndex[0]][Constants.LONGITUDE_INDEX];
+                String destLoc= Constants.LATITUDE_LONGITUDE[buildingIndex[0]][Constants.LATITUDE_INDEX] + "," + Constants.LATITUDE_LONGITUDE[buildingIndex[0]][Constants.LONGITUDE_INDEX];
+                query = query.replace("usrLoc", usrLoc);
+                query = query.replace("destLoc", destLoc);
+
+                return RESTHelper.fetchData(Constants.MAPS_API_REQUEST_URI, query);
+            }
+
+            protected void onPostExecute(String result) {
+                showBuildingDetailScreen(result);
+            }
         }
 
         private int getColour( int x, int y)
@@ -396,5 +463,9 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
 
             return true;
         }
+    }
+
+    private void showBuildingDetailScreen(String result) {
+
     }
 }
