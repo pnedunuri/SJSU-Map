@@ -264,7 +264,7 @@ public class Constants {
                     37.3359359, -121.8833193
             },
             {
-                    37.3359148,-121.8825466
+                    37.3359148, -121.8825466
             },
             {
                     37.3370102, -121.8816004
@@ -303,7 +303,7 @@ public class Constants {
 
 
     // COLOR VALUES FOR BUILDINGS
-    public static final int [][] BUILDINGS_COLOR_VALUES = {
+    public static final int[][] BUILDINGS_COLOR_VALUES = {
             {
                     254, 0, 0
             },

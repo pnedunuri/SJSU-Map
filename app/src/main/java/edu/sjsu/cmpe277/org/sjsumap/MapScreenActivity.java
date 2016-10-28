@@ -18,6 +18,7 @@ import android.view.MenuInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewTreeObserver;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 
@@ -34,13 +35,16 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
 
     private double buildingCoordinates[][] = null;
 
-    public static String searchString = null;
-    private String prevString = null;
+    public static volatile String searchString = null;
+    private volatile String prevString = null;
 
     private volatile boolean isAppRunning = false;
 
     private volatile GPSTracker gpsTracker = null;
     private volatile boolean gpsTrackerPrompted = false;
+    private SearchView searchView = null;
+    private volatile boolean markerCleared = false;
+    private static final double THRESHOLD = 0.0009;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,10 +79,6 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
         });
 
         isAppRunning = true;
-
-        new Thread(this).start();
-
-        gpsTracker = new GPSTracker(this);
     }
 
     @Override
@@ -89,7 +89,7 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
         // Associate searchable configuration with the SearchView
         SearchManager searchManager =
                 (SearchManager) getSystemService(Context.SEARCH_SERVICE);
-        SearchView searchView =
+        searchView =
                 (SearchView) menu.findItem(R.id.menu_search).getActionView();
         searchView.setSearchableInfo(
                 searchManager.getSearchableInfo(getComponentName()));
@@ -241,6 +241,10 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
     @Override
     public void onResume() {
         super.onResume();
+
+        new Thread(this).start();
+
+        gpsTracker = new GPSTracker(this);
     }
 
     private int getColour( int x, int y)
@@ -252,7 +256,7 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
         int right = imageView.getWidth();
         int top = imageView.getTop();
         int down = imageView.getHeight();
-        Log.d("COORDINATES", "" + "x:: " + x + ", y:: " + y + ", left:: " + left + ", right:: " + right + ", top:: " + top + ", down:: " + down);
+//        Log.d("COORDINATES", "" + "x:: " + x + ", y:: " + y + ", left:: " + left + ", right:: " + right + ", top:: " + top + ", down:: " + down);
         if (x <= left || x >= right || y <= top || y >= down) {
             return -1;
         }
@@ -273,7 +277,7 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
 
     @Override
     public void run() {
-        while(isAppRunning) {
+            while(isAppRunning) {
             initMap();
 
             if (gpsTracker == null)
@@ -283,18 +287,51 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
 
             // fetch location
             if(gpsTracker.canGetLocation()) {
-                double latitude = gpsTracker.getLatitude();
-                double longitude = gpsTracker.getLongitude();
-                if (latitude == 0) {
+                double userLatitude = gpsTracker.getLatitude();
+                double userLongitude = gpsTracker.getLongitude();
+                if (userLatitude == 0) {
                     gpsTracker.getLocation();
-                }
+                } else {
+                    // user location
+                    int currX = -1;
+                    int currY = -1;
 
-                int bIndex = 0;
-                for (bIndex = 0; bIndex < Constants.LATITUDE_LONGITUDE.length; bIndex++) {
-                    double x = Math.abs(Constants.LATITUDE_LONGITUDE[bIndex][Constants.LATITUDE_INDEX] - latitude);
-                    double y = Math.abs(Constants.LATITUDE_LONGITUDE[bIndex][Constants.LONGITUDE_INDEX] - longitude);
+                    int refBuildX = (int) buildingCoordinates[Constants.KING_LIB][Constants.LEFT_INDEX];
+                    refBuildX += (buildingCoordinates[Constants.KING_LIB][Constants.RIGHT_INDEX] - refBuildX) / 2;
 
-                    Log.d("TAG", x + "," + y);
+                    int refBuildY = (int) buildingCoordinates[Constants.KING_LIB][Constants.TOP_INDEX];
+                    refBuildY += ((buildingCoordinates[Constants.KING_LIB][Constants.DOWN_INDEX] - refBuildY) / 2);
+
+                    double refLatitude = Constants.LATITUDE_LONGITUDE[Constants.KING_LIB][Constants.LATITUDE_INDEX];
+                    double refLongitude = Constants.LATITUDE_LONGITUDE[Constants.KING_LIB][Constants.LONGITUDE_INDEX];
+
+                    for (int bIndex = 0; bIndex < Constants.LATITUDE_LONGITUDE.length; bIndex++) {
+                        if (bIndex == Constants.KING_LIB)
+                        {
+                            continue;
+                        }
+
+                        double currBuildLat = Constants.LATITUDE_LONGITUDE[Constants.KING_LIB][Constants.LATITUDE_INDEX];
+                        double currBuildLong = Constants.LATITUDE_LONGITUDE[Constants.KING_LIB][Constants.LONGITUDE_INDEX];
+
+                        int currBuildX = (int) buildingCoordinates[bIndex][Constants.LEFT_INDEX];
+                        currBuildX += (buildingCoordinates[bIndex][Constants.RIGHT_INDEX] - currBuildX) / 2;
+
+                        int currBuildY = (int) buildingCoordinates[bIndex][Constants.TOP_INDEX];
+                        currBuildY += ((buildingCoordinates[bIndex][Constants.DOWN_INDEX] - currBuildY) / 2);
+
+                        if (Math.abs(currBuildLat - userLatitude) < THRESHOLD && Math.abs(currBuildLong - userLongitude) < THRESHOLD) {
+                            currX = currBuildX;
+                            currY = currBuildY;
+                        } else if (userLatitude > currBuildLat && userLongitude < currBuildLong) {
+                            // user is in between library and current building
+                            int diffX = Math.abs(currBuildX - refBuildX);
+                            int diffY = Math.abs(currBuildY - refBuildY);
+
+                            double avgLatitude = 0;
+                            double avgLongitude = 0;
+                        }
+                    }
                 }
             } else if(!gpsTrackerPrompted && !gpsTracker.permissionFailed) {
                 // can't get location
@@ -310,42 +347,62 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
                 });
             }
 
-            if (searchString != prevString) {
+            if (!markerCleared && (searchString == null || searchString.length() < 1)) {
+                markerCleared = true;
+
+                // remove the marker
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        RelativeLayout rl = (RelativeLayout) findViewById(R.id.activity_map_screen);
+
+                        ImageView bLocation = (ImageView) findViewById(R.id.destinationMarker);
+                        bLocation.setVisibility(View.INVISIBLE);
+                    }
+                });
+            }
+            else if (searchString != null && !searchString.equals(prevString)) {
                 searchString = searchString.toUpperCase();
                 prevString = searchString;
 
-                if (searchString == null) {
-                    // remove the marker
-                } else {
-                    // put the marker on that building
-                    for (int bIndedx = 0; bIndedx < Constants.NO_OF_BUILDINGS; bIndedx++) {
-                        if (Constants.BUILDING_NAMES[bIndedx].equals(searchString)) {
-                            final int index = bIndedx;
+                // put the marker on that building
+                for (int bIndex = 0; bIndex < Constants.NO_OF_BUILDINGS; bIndex++) {
+                    if (Constants.BUILDING_NAMES[bIndex].equals(searchString)) {
+                        final int index = bIndex;
+                        markerCleared = false;
 
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    RelativeLayout rl = (RelativeLayout) findViewById(R.id.activity_map_screen);
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                RelativeLayout rl = (RelativeLayout) findViewById(R.id.activity_map_screen);
 
-                                    ImageView bLocation = (ImageView) findViewById(R.id.destinationMarker);
-                                    rl.removeView(bLocation);
+                                ImageView bLocation = (ImageView) findViewById(R.id.destinationMarker);
+                                rl.removeView(bLocation);
 
-                                    bLocation.setVisibility(View.VISIBLE);
+                                bLocation.setVisibility(View.VISIBLE);
 
-                                    RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(bLocation.getWidth(), bLocation.getHeight());
+                                RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(bLocation.getWidth(), bLocation.getHeight());
 
-                                    int left = (int) buildingCoordinates[index][Constants.LEFT_INDEX];
-                                    left += (buildingCoordinates[index][Constants.RIGHT_INDEX] - left) / 2;
-                                    int top = (int) buildingCoordinates[index][Constants.TOP_INDEX];
-                                    top += ((buildingCoordinates[index][Constants.DOWN_INDEX] - top) / 2) - bLocation.getHeight();
-                                    params.leftMargin = left;
-                                    params.topMargin = top;
+                                int left = (int) buildingCoordinates[index][Constants.LEFT_INDEX];
+                                left += (buildingCoordinates[index][Constants.RIGHT_INDEX] - left) / 2;
+                                int top = (int) buildingCoordinates[index][Constants.TOP_INDEX];
+                                top += ((buildingCoordinates[index][Constants.DOWN_INDEX] - top) / 2) - bLocation.getHeight();
+                                params.leftMargin = left;
+                                params.topMargin = top;
 
-                                    rl.addView(bLocation, params);
-                                }
-                            });
-                        }
+                                rl.addView(bLocation, params);
+
+                                searchView.clearFocus();
+                                InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                                imm.hideSoftInputFromWindow(searchView.getWindowToken(), 0);
+                            }
+                        });
                     }
+                }
+            } else if (searchView != null) {
+                CharSequence sequence = searchView.getQuery();
+                if (sequence.length() < 1) {
+                    searchString = null;
                 }
             }
         }
@@ -448,7 +505,7 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
                 return -1;
             }
 
-            Log.d("COORDINATES", "" + "x:: " + x + ", y:: " + y + ", left:: " + left + ", right:: " + right + ", top:: " + top + ", down:: " + down);
+//            Log.d("COORDINATES", "" + "x:: " + x + ", y:: " + y + ", left:: " + left + ", right:: " + right + ", top:: " + top + ", down:: " + down);
 
             Bitmap mutableBitmap = Bitmap.createBitmap(imageView.getWidth(), imageView.getHeight(), Bitmap.Config.ARGB_8888);
             Canvas canvas = new Canvas(mutableBitmap);
