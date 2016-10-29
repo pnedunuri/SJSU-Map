@@ -3,6 +3,7 @@ package edu.sjsu.cmpe277.org.sjsumap;
 import android.app.Activity;
 import android.app.SearchManager;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -21,6 +22,10 @@ import android.view.ViewTreeObserver;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.json.JSONException;
 
 public class MapScreenActivity extends AppCompatActivity implements Runnable{
 
@@ -474,19 +479,28 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
             return true;
         }
 
-        private class GeoLocationFetcher extends AsyncTask<Integer, Void, String> {
-            protected String doInBackground(Integer... buildingIndex) {
-
+        private class GeoLocationFetcher extends AsyncTask<Integer, Void, JSONObject> {
+            protected JSONObject doInBackground(Integer... buildingIndex) {
+                String response;
+                JSONObject obj = null;
                 String query = Constants.MAPS_API_REQUEST_QUERY;
                 String usrLoc = Constants.LATITUDE_LONGITUDE[buildingIndex[0]][Constants.LATITUDE_INDEX] + "," + Constants.LATITUDE_LONGITUDE[buildingIndex[0]][Constants.LONGITUDE_INDEX];
                 String destLoc= Constants.LATITUDE_LONGITUDE[buildingIndex[0]][Constants.LATITUDE_INDEX] + "," + Constants.LATITUDE_LONGITUDE[buildingIndex[0]][Constants.LONGITUDE_INDEX];
                 query = query.replace("usrLoc", usrLoc);
                 query = query.replace("destLoc", destLoc);
 
-                return RESTHelper.fetchData(Constants.MAPS_API_REQUEST_URI, query);
+                response = RESTHelper.fetchData(Constants.MAPS_API_REQUEST_URI, query);
+                try{
+                    obj = new JSONObject(response);
+                    obj.put("buildingIndex",buildingIndex[0].intValue());
+                }catch(Exception e){
+
+                }
+                return obj;
             }
 
-            protected void onPostExecute(String result) {
+            protected void onPostExecute(JSONObject result) {
+
                 showBuildingDetailScreen(result);
             }
         }
@@ -522,7 +536,29 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
         }
     }
 
-    private void showBuildingDetailScreen(String result) {
+    private void showBuildingDetailScreen(JSONObject result) {
+        Log.d("Building details",result + "");
+
+
+        Intent intent = new Intent(MapScreenActivity.this,BuildingDetailsActivity.class);
+        try {
+            intent.putExtra("name", Constants.BUILDING_NAMES[result.getInt("buildingIndex")]);
+            String address = Constants.BUILDING_ADDRESSES[result.getInt("buildingIndex")];
+            if(address.equals("")){
+                JSONArray arr = result.getJSONArray("destination_addresses");
+                address = arr.getString(0);
+            }
+            intent.putExtra("address",address);
+            String distance = result.getJSONArray("rows").getJSONObject(0).getJSONArray("elements").getJSONObject(0).getJSONObject("distance").getString("text");
+            String duration = result.getJSONArray("rows").getJSONObject(0).getJSONArray("elements").getJSONObject(0).getJSONObject("duration").getString("text");;
+            intent.putExtra("distance",distance);
+            intent.putExtra("duration",duration);
+            intent.putExtra("imageName",Constants.BUILDING_IMAGE_NAMES[result.getInt("buildingIndex")]);
+            startActivity(intent);
+
+        }catch(Exception e){
+            Log.d("Exception",e+"");
+        }
 
     }
 }
