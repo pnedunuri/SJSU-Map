@@ -327,9 +327,6 @@ public class Constants {
                     37.334195, -121.882433
             },
             {
-                    37.334195, -121.882433
-            },
-            {
                     37.334570, -121.881689
             },
             {
@@ -634,7 +631,7 @@ public class Constants {
             "",
             "",
             "",
-            " San José State University Charles W. Davidson College of Engineering, 1 Washington Square, San Jose, CA 95112",
+            " San Josï¿½ State University Charles W. Davidson College of Engineering, 1 Washington Square, San Jose, CA 95112",
             "",
             "",
             "",
@@ -644,7 +641,7 @@ public class Constants {
             "",
             "",
             "",
-            "San José State University, 211 S 9th St, San Jose, CA 95112",
+            "San Josï¿½ State University, 211 S 9th St, San Jose, CA 95112",
             "",
             "",
             "",
