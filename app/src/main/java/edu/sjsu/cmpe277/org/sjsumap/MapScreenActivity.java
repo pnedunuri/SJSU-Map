@@ -27,9 +27,9 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONException;
 
-public class MapScreenActivity extends AppCompatActivity implements Runnable{
+public class MapScreenActivity extends AppCompatActivity implements Runnable {
 
-    public static Activity me = null;
+    public static MapScreenActivity me = null;
 
     public static float pxPerInch = 0;
 
@@ -50,6 +50,10 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
     private SearchView searchView = null;
     private volatile boolean markerCleared = false;
     private static final double THRESHOLD = 0.0009;
+    private volatile Thread mapScreenThread = null;
+    private boolean shouldStopThread = false;
+    private double previousLatitude = 0;
+    private double previousLongitude = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -247,7 +251,8 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
     public void onResume() {
         super.onResume();
 
-        new Thread(this).start();
+        mapScreenThread = new Thread(this);
+        mapScreenThread.start();
 
         gpsTracker = new GPSTracker(this);
     }
@@ -282,7 +287,17 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
 
     @Override
     public void run() {
-            while(isAppRunning) {
+        while(isAppRunning) {
+            if (shouldStopThread)  {
+                try {
+                    synchronized (mapScreenThread) {
+                        mapScreenThread.wait();
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+
             initMap();
 
             if (gpsTracker == null)
@@ -294,6 +309,13 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
             if(gpsTracker.canGetLocation()) {
                 double userLatitude = gpsTracker.getLatitude();
                 double userLongitude = gpsTracker.getLongitude();
+                if ((previousLatitude == 0 || Math.abs(previousLatitude - userLatitude) > THRESHOLD) || (previousLongitude == 0 || Math.abs(previousLongitude - userLongitude) > THRESHOLD)) {
+                    previousLatitude = userLatitude;
+                    previousLongitude = userLongitude;
+                } else {
+                    return;
+                }
+
                 if (userLatitude == 0) {
                     gpsTracker.getLocation();
                 } else {
@@ -310,32 +332,78 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
                     double refLatitude = Constants.LATITUDE_LONGITUDE[Constants.KING_LIB][Constants.LATITUDE_INDEX];
                     double refLongitude = Constants.LATITUDE_LONGITUDE[Constants.KING_LIB][Constants.LONGITUDE_INDEX];
 
-                    for (int bIndex = 0; bIndex < Constants.LATITUDE_LONGITUDE.length; bIndex++) {
-                        if (bIndex == Constants.KING_LIB)
-                        {
-                            continue;
+                    boolean userOutOfUniv = true;
+
+                    if (!(userLatitude > refLatitude && userLongitude < refLongitude)) {
+                        for (int bIndex = 0; bIndex < Constants.LATITUDE_LONGITUDE.length; bIndex++) {
+                            if (bIndex == Constants.KING_LIB) {
+                                continue;
+                            }
+
+                            double currBuildLat = Constants.LATITUDE_LONGITUDE[Constants.KING_LIB][Constants.LATITUDE_INDEX];
+                            double currBuildLong = Constants.LATITUDE_LONGITUDE[Constants.KING_LIB][Constants.LONGITUDE_INDEX];
+
+                            int currBuildX = (int) buildingCoordinates[bIndex][Constants.LEFT_INDEX];
+                            currBuildX += (buildingCoordinates[bIndex][Constants.RIGHT_INDEX] - currBuildX) / 2;
+
+                            int currBuildY = (int) buildingCoordinates[bIndex][Constants.TOP_INDEX];
+                            currBuildY += ((buildingCoordinates[bIndex][Constants.DOWN_INDEX] - currBuildY) / 2);
+
+                            if (Math.abs(currBuildLat - userLatitude) < THRESHOLD && Math.abs(currBuildLong - userLongitude) < THRESHOLD) {
+                                currX = currBuildX;
+                                currY = currBuildY;
+                            } else if (userLatitude > currBuildLat && userLongitude < currBuildLong) {
+                                // user is in between library and current building
+                                int diffX = Math.abs(currBuildX - refBuildX);
+                                int diffY = Math.abs(currBuildY - refBuildY);
+
+                                double deltaLat = Math.abs(currBuildLat - refLatitude);
+                                double deltaLon = Math.abs(currBuildLong - refLongitude);
+
+                                double latitudePerPixel = (((deltaLat / diffX) + (deltaLat / diffY)) / 2);
+                                double longitudePerPixel = (((deltaLon / diffX) + (deltaLon / diffY)) / 2);
+
+                                final int relativeX = (int) ((refLatitude - userLatitude) / latitudePerPixel);
+                                final int relativeY = (int) ((refLongitude - userLongitude) / longitudePerPixel);
+
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        RelativeLayout rl = (RelativeLayout) findViewById(R.id.activity_map_screen);
+
+                                        ImageView uLocation = (ImageView) findViewById(R.id.userMarker);
+                                        rl.removeView(uLocation);
+
+                                        uLocation.setVisibility(View.VISIBLE);
+
+                                        RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(uLocation.getWidth(), uLocation.getHeight());
+
+                                        params.leftMargin = relativeX;
+                                        params.topMargin = relativeY;
+
+                                        rl.addView(uLocation, params);
+
+                                        searchView.clearFocus();
+                                        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                                        imm.hideSoftInputFromWindow(searchView.getWindowToken(), 0);
+                                    }
+                                });
+
+                                userOutOfUniv = false;
+                                break;
+                            }
                         }
+                    }
 
-                        double currBuildLat = Constants.LATITUDE_LONGITUDE[Constants.KING_LIB][Constants.LATITUDE_INDEX];
-                        double currBuildLong = Constants.LATITUDE_LONGITUDE[Constants.KING_LIB][Constants.LONGITUDE_INDEX];
-
-                        int currBuildX = (int) buildingCoordinates[bIndex][Constants.LEFT_INDEX];
-                        currBuildX += (buildingCoordinates[bIndex][Constants.RIGHT_INDEX] - currBuildX) / 2;
-
-                        int currBuildY = (int) buildingCoordinates[bIndex][Constants.TOP_INDEX];
-                        currBuildY += ((buildingCoordinates[bIndex][Constants.DOWN_INDEX] - currBuildY) / 2);
-
-                        if (Math.abs(currBuildLat - userLatitude) < THRESHOLD && Math.abs(currBuildLong - userLongitude) < THRESHOLD) {
-                            currX = currBuildX;
-                            currY = currBuildY;
-                        } else if (userLatitude > currBuildLat && userLongitude < currBuildLong) {
-                            // user is in between library and current building
-                            int diffX = Math.abs(currBuildX - refBuildX);
-                            int diffY = Math.abs(currBuildY - refBuildY);
-
-                            double avgLatitude = 0;
-                            double avgLongitude = 0;
-                        }
+                    // user marker invisible
+                    if (userOutOfUniv) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                ImageView uLocation = (ImageView) findViewById(R.id.userMarker);
+                                uLocation.setVisibility(View.VISIBLE);
+                            }
+                        });
                     }
                 }
             } else if(!gpsTrackerPrompted && !gpsTracker.permissionFailed) {
@@ -359,8 +427,6 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        RelativeLayout rl = (RelativeLayout) findViewById(R.id.activity_map_screen);
-
                         ImageView bLocation = (ImageView) findViewById(R.id.destinationMarker);
                         bLocation.setVisibility(View.INVISIBLE);
                     }
@@ -372,7 +438,7 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
 
                 // put the marker on that building
                 for (int bIndex = 0; bIndex < Constants.NO_OF_BUILDINGS; bIndex++) {
-                    if (Constants.BUILDING_NAMES[bIndex].equals(searchString)) {
+                    if (Constants.BUILDING_NAMES[bIndex].toUpperCase().equals(searchString)) {
                         final int index = bIndex;
                         markerCleared = false;
 
@@ -420,6 +486,20 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
         isAppRunning = false;
     }
 
+    public void stopThread() {
+        shouldStopThread = true;
+    }
+
+    public void notifyThread() {
+        try{
+            synchronized (mapScreenThread) {
+                mapScreenThread.notify();
+            }
+        } catch (Exception e) {
+
+        }
+        shouldStopThread = false;
+    }
 
     class ImageTouchListener implements View.OnTouchListener {
 
@@ -465,6 +545,8 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
 
                 if (buildingIndex != -1) {
                     final int buildingIndexCopy = buildingIndex;
+                    stopThread();
+
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -472,7 +554,6 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
                         }
                     });
                 }
-
                 Log.d("Building Index", buildingIndex + "");
             }
 
@@ -484,16 +565,19 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
                 String response;
                 JSONObject obj = null;
                 String query = Constants.MAPS_API_REQUEST_QUERY;
-                String usrLoc = Constants.LATITUDE_LONGITUDE[buildingIndex[0]][Constants.LATITUDE_INDEX] + "," + Constants.LATITUDE_LONGITUDE[buildingIndex[0]][Constants.LONGITUDE_INDEX];
+
+                double userLatitude = gpsTracker.getLatitude();
+                double userLongitude = gpsTracker.getLongitude();
+                String usrLoc = userLatitude + "," + userLongitude;
                 String destLoc= Constants.LATITUDE_LONGITUDE[buildingIndex[0]][Constants.LATITUDE_INDEX] + "," + Constants.LATITUDE_LONGITUDE[buildingIndex[0]][Constants.LONGITUDE_INDEX];
                 query = query.replace("usrLoc", usrLoc);
                 query = query.replace("destLoc", destLoc);
 
                 response = RESTHelper.fetchData(Constants.MAPS_API_REQUEST_URI, query);
-                try{
+                try {
                     obj = new JSONObject(response);
-                    obj.put("buildingIndex",buildingIndex[0].intValue());
-                }catch(Exception e){
+                    obj.put("buildingIndex", buildingIndex[0].intValue());
+                } catch(Exception e) {
 
                 }
                 return obj;
@@ -539,7 +623,6 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
     private void showBuildingDetailScreen(JSONObject result) {
         Log.d("Building details",result + "");
 
-
         Intent intent = new Intent(MapScreenActivity.this,BuildingDetailsActivity.class);
         try {
             intent.putExtra("name", Constants.BUILDING_NAMES[result.getInt("buildingIndex")]);
@@ -554,11 +637,10 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable{
             intent.putExtra("distance",distance);
             intent.putExtra("duration",duration);
             intent.putExtra("imageName",Constants.BUILDING_IMAGE_NAMES[result.getInt("buildingIndex")]);
-            startActivity(intent);
 
-        }catch(Exception e){
+            startActivity(intent);
+        } catch(Exception e) {
             Log.d("Exception",e+"");
         }
-
     }
 }

@@ -24,6 +24,7 @@ public class BuildingDetailsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_building_details);
+
         Bundle extras  = getIntent().getExtras();
         address = (TextView)findViewById(R.id.address);
         address.setText(extras.getString("address"));
@@ -49,8 +50,10 @@ public class BuildingDetailsActivity extends AppCompatActivity {
         }else {
             image.setImageResource(R.drawable.no_image);
         }
-        getSupportActionBar().setDefaultDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setTitle(extras.getString("name"));
+
+        // home screen button
+        ActionBar actionBar = getSupportActionBar();
+        actionBar.setDisplayHomeAsUpEnabled(true);
     }
 
     @Override
@@ -61,5 +64,12 @@ public class BuildingDetailsActivity extends AppCompatActivity {
                 return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+
+        MapScreenActivity.me.notifyThread();
     }
 }
