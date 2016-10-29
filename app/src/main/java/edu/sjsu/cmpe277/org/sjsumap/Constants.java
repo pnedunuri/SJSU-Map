@@ -240,10 +240,10 @@ public class Constants {
     // LATITUDE LONGITUDE
     public static final double[][] LATITUDE_LONGITUDE = {
             {
-                    37.339652, -121.8813852
+                    37.339458, -121.880638
             },
             {
-                    37.3353515, -121.8849847
+                    37.335775, -121.885310
             },
             {
                     37.3358133, -121.8842735
@@ -264,35 +264,141 @@ public class Constants {
                     37.3359359, -121.8833193
             },
             {
-                    37.3359148, -121.8825466
+                    37.3359148,-121.8825466
             },
             {
-                    37.3370102, -121.8816004
+                    37.337013, -121.881603
             },
             {
-                    37.3375895, -121.8806028
+                    37.337593, -121.880605
             },
             {
-                    37.3381504, -121.8805641
+                    37.338354, -121.879876
             },
             {
-                    37.3382457, -121.8793369
+                    37.337763, -121.879498
             },
             {
-                    37.3373684, -121.8797704
+                    37.337312, -121.879771
             },
             {
-                    37.3347153, -121.8847462
+                    37.334744, -121.884713
             },
             {
-                    37.3341805, -121.8842148
+                    37.334249, -121.884137
             },
             {
-                    37.3352958, -121.8834068
+                    37.335332, -121.883232
             },
             {
-                    37.339652, -121.8813852 // dummy
+                    37.335160, -121.882344
+            },
+            {
+                    37.335569, -121.881874
+            },
+            {
+                    37.336329, -121.881289
+            },
+            {
+                    37.336917, -121.880267
+            },
+            {
+                    37.335472, -121.880905
+            },
+            {
+                    37.335973, -121.879725
+            },
+            {
+                    37.337074, -121.878947
+            },
+            {
+                    37.336564, -121.878725
+            },
+            {
+                    37.333764, -121.883972
+            },
+            {
+                    37.334218, -121.883314
+            },
+            {
+                    37.334643, -121.882558
+            },
+            {
+                    37.334195, -121.882433
+            },
+            {
+                    37.334195, -121.882433
+            },
+            {
+                    37.334570, -121.881689
+            },
+            {
+                    37.334774, -121.881179
+            },
+            {
+                    37.335393, -121.880094
+            },
+            {
+                    37.335788, -121.879173
+            },
+            {
+                    37.336213, -121.878392
+            },
+            {
+                    37.332575, -121.883055
+            },
+            {
+                    37.333319, -121.882724
+            },
+            {
+                    37.332746, -121.882217
+            },
+            {
+                    37.333436, -121.881726
+            },
+            {
+                    37.333922, -121.880929
+            },
+            {
+                    37.333245, -121.880732
+            },
+            {
+                    37.333138, -121.879894
+            },
+            {
+
+            },
+            {
+                    37.334448, -121.879892
+            },
+            {
+                    37.334116, -121.879667
+            },
+            {
+                    37.333691, -121.879350
+            },
+            {
+                    37.334765, -121.878935
+            },
+            {
+                    37.334070, -121.878513
+            },
+            {
+                    37.335284, -121.878597
+            },
+            {
+                    37.334290, -121.878068
+            },
+            {
+                    37.335742, -121.878020
+            },
+            {
+                    37.334568, -121.877585
+            },
+            {
+                    37.334988, -121.876864
             }
+
     };
 
     // COLOR INDEXES
@@ -303,7 +409,7 @@ public class Constants {
 
 
     // COLOR VALUES FOR BUILDINGS
-    public static final int[][] BUILDINGS_COLOR_VALUES = {
+    public static final int [][] BUILDINGS_COLOR_VALUES = {
             {
                     254, 0, 0
             },
@@ -464,7 +570,7 @@ public class Constants {
 
     public static final String[] BUILDING_NAMES = {
             "NP_GARAGE_BUILDING",
-            "KING_LIB_BUILDING",
+            "King Library",
             "UT_N_HGH_BUILDING",
             "DMH_BUILDING",
             "IRC_BUILDING",
@@ -472,7 +578,7 @@ public class Constants {
             "ADM_BUILDING",
             "CC_BUILDING",
             "CL_BUILDING",
-            "ENG_BUILDING",
+            "Engineering Building",
             "IS_BUILDING",
             "CYA_BUILDING",
             "CYB_BUILDING",
@@ -482,13 +588,13 @@ public class Constants {
             "TH_N_MD_BUILDING",
             "DBH_BUILDING",
             "CCB_BUILDING",
-            "SU_BUILDING",
+            "Student Union",
             "BK_BUILDING",
             "MUS_N_CH_BUILDING",
             "ART_BUILDING",
             "BT_BUILDING",
-            "BBC_BUILDING",
-            "YUH_BUILDING",
+            "BBC",
+            "Yoshihiro Uchida Hall",
             "SPM_BUILDING",
             "FOB_BUILDING",
             "SPXC_BUILDING",
@@ -502,7 +608,7 @@ public class Constants {
             "DH_BUILDING",
             "MQH_BUILDING",
             "SH_BUILDING",
-            "SP_GARAGE_BUILDING",
+            "South Parking Garage",
             "UPD_BUILDING",
             "B_N_A_BUILDING",
             "ASP_N_HOV_BUILDING",
@@ -515,6 +621,118 @@ public class Constants {
             "CVC_BUILDING",
             "CVA_BUILDING",
             "CVB_BUILDING"
+    };
+
+    //Building Addresses
+    public static final String[] BUILDING_ADDRESSES = {
+            "",
+            "Dr. Martin Luther King, Jr. Library, 150 East San Fernando Street, San Jose, CA 95112",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            " San José State University Charles W. Davidson College of Engineering, 1 Washington Square, San Jose, CA 95112",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "San José State University, 211 S 9th St, San Jose, CA 95112",
+            "",
+            "",
+            "",
+            "",
+            "Boccardo Business Complex, San Jose, CA 95112",
+            "Yoshihiro Uchida Hall, San Jose, CA 95112",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            " San Jose State University South Garage, 330 South 7th Street, San Jose, CA 95112",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+    };
+
+    //Building Addresses
+    public static final String[] BUILDING_IMAGE_NAMES = {
+            "",
+            "king_library",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "engineering_building",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "student_union",
+            "",
+            "",
+            "",
+            "",
+            "bbc",
+            "yoshihiro_uchida_hall",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "south_parking_garage",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
     };
 
     // Building Co-Ordinates Original
