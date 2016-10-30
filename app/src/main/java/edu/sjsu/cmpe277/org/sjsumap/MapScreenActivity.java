@@ -50,8 +50,9 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
     private SearchView searchView = null;
     private volatile boolean markerCleared = false;
     private static final double THRESHOLD = 0.0009;
+    private static final double GPS_LOCATION_THRESHOLD = 0.00009;
     private volatile Thread mapScreenThread = null;
-    private boolean shouldStopThread = false;
+    private volatile boolean shouldStopThread = false;
     private double previousLatitude = 0;
     private double previousLongitude = 0;
 
@@ -312,60 +313,86 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
                 if ((previousLatitude == 0 || Math.abs(previousLatitude - userLatitude) > THRESHOLD) || (previousLongitude == 0 || Math.abs(previousLongitude - userLongitude) > THRESHOLD)) {
                     previousLatitude = userLatitude;
                     previousLongitude = userLongitude;
-                } else {
-                    return;
-                }
 
-                if (userLatitude == 0) {
-                    gpsTracker.getLocation();
-                } else {
-                    // user location
-                    int currX = -1;
-                    int currY = -1;
+                    if (userLatitude == 0) {
+                        gpsTracker.getLocation();
+                    } else {
+                        // user location
+                        // TODO: Fix this
+                        int currX = -1;
+                        int currY = -1;
 
-                    int refBuildX = (int) buildingCoordinates[Constants.KING_LIB][Constants.LEFT_INDEX];
-                    refBuildX += (buildingCoordinates[Constants.KING_LIB][Constants.RIGHT_INDEX] - refBuildX) / 2;
+                        int refBuildX = (int) buildingCoordinates[Constants.KING_LIB][Constants.LEFT_INDEX];
+                        refBuildX += (buildingCoordinates[Constants.KING_LIB][Constants.RIGHT_INDEX] - refBuildX) / 2;
 
-                    int refBuildY = (int) buildingCoordinates[Constants.KING_LIB][Constants.TOP_INDEX];
-                    refBuildY += ((buildingCoordinates[Constants.KING_LIB][Constants.DOWN_INDEX] - refBuildY) / 2);
+                        int refBuildY = (int) buildingCoordinates[Constants.KING_LIB][Constants.TOP_INDEX];
+                        refBuildY += ((buildingCoordinates[Constants.KING_LIB][Constants.DOWN_INDEX] - refBuildY) / 2);
 
-                    double refLatitude = Constants.LATITUDE_LONGITUDE[Constants.KING_LIB][Constants.LATITUDE_INDEX];
-                    double refLongitude = Constants.LATITUDE_LONGITUDE[Constants.KING_LIB][Constants.LONGITUDE_INDEX];
+                        double refLatitude = Constants.LATITUDE_LONGITUDE[Constants.KING_LIB][Constants.LATITUDE_INDEX];
+                        double refLongitude = Constants.LATITUDE_LONGITUDE[Constants.KING_LIB][Constants.LONGITUDE_INDEX];
 
-                    boolean userOutOfUniv = true;
+                        boolean userOutOfUniv = true;
 
-                    if (!(userLatitude > refLatitude && userLongitude < refLongitude)) {
-                        for (int bIndex = 0; bIndex < Constants.LATITUDE_LONGITUDE.length; bIndex++) {
-                            if (bIndex == Constants.KING_LIB) {
-                                continue;
+                        if (!(userLatitude > refLatitude && userLongitude < refLongitude)) {
+                            for (int bIndex = 0; bIndex < Constants.LATITUDE_LONGITUDE.length; bIndex++) {
+                                if (bIndex == Constants.KING_LIB) {
+                                    continue;
+                                }
+
+                                double currBuildLat = Constants.LATITUDE_LONGITUDE[bIndex][Constants.LATITUDE_INDEX];
+                                double currBuildLong = Constants.LATITUDE_LONGITUDE[bIndex][Constants.LONGITUDE_INDEX];
+
+                                int currBuildX = (int) buildingCoordinates[bIndex][Constants.LEFT_INDEX];
+                                currBuildX += (buildingCoordinates[bIndex][Constants.RIGHT_INDEX] - currBuildX) / 2;
+
+                                int currBuildY = (int) buildingCoordinates[bIndex][Constants.TOP_INDEX];
+                                currBuildY += ((buildingCoordinates[bIndex][Constants.DOWN_INDEX] - currBuildY) / 2);
+
+                                if (Math.abs(currBuildLat - userLatitude) < GPS_LOCATION_THRESHOLD && Math.abs(currBuildLong - userLongitude) < GPS_LOCATION_THRESHOLD) {
+                                    currX = currBuildX;
+                                    currY = currBuildY;
+
+                                    userOutOfUniv = false;
+                                    break;
+                                } else if (userLatitude > currBuildLat && userLongitude < currBuildLong) {
+                                    // user is in between library and current building
+                                    int diffX = Math.abs(currBuildX - refBuildX);
+                                    int diffY = Math.abs(currBuildY - refBuildY);
+
+                                    double deltaLat = Math.abs(currBuildLat - refLatitude);
+                                    double deltaLon = Math.abs(currBuildLong - refLongitude);
+
+                                    double latitudePerPixel = (((deltaLat / diffX) + (deltaLat / diffY)) / 2);
+                                    double longitudePerPixel = (((deltaLon / diffX) + (deltaLon / diffY)) / 2);
+
+//                                    currX = refBuildX + ((int) Math.abs((refLatitude - userLatitude) / latitudePerPixel));
+//                                    currY = refBuildY + ((int) Math.abs((refLongitude - userLongitude) / longitudePerPixel));
+
+                                    int tempXLat = refBuildX + (int) ((refLatitude - userLatitude) / latitudePerPixel);
+                                    int tempXLong = refBuildX + (int) ((refLongitude - userLongitude) / longitudePerPixel);
+                                    currX = tempXLat + (int) (tempXLong / 10);
+
+                                    int tempYLat = refBuildY + (int) ((refLatitude - userLatitude) / latitudePerPixel);
+                                    int tempYLong = refBuildY + (int) ((refLongitude - userLongitude) / longitudePerPixel);
+                                    currY = tempYLat + (int) (tempYLong / 10);
+
+                                    userOutOfUniv = false;
+                                    break;
+                                }
                             }
 
-                            double currBuildLat = Constants.LATITUDE_LONGITUDE[Constants.KING_LIB][Constants.LATITUDE_INDEX];
-                            double currBuildLong = Constants.LATITUDE_LONGITUDE[Constants.KING_LIB][Constants.LONGITUDE_INDEX];
-
-                            int currBuildX = (int) buildingCoordinates[bIndex][Constants.LEFT_INDEX];
-                            currBuildX += (buildingCoordinates[bIndex][Constants.RIGHT_INDEX] - currBuildX) / 2;
-
-                            int currBuildY = (int) buildingCoordinates[bIndex][Constants.TOP_INDEX];
-                            currBuildY += ((buildingCoordinates[bIndex][Constants.DOWN_INDEX] - currBuildY) / 2);
-
-                            if (Math.abs(currBuildLat - userLatitude) < THRESHOLD && Math.abs(currBuildLong - userLongitude) < THRESHOLD) {
-                                currX = currBuildX;
-                                currY = currBuildY;
-                            } else if (userLatitude > currBuildLat && userLongitude < currBuildLong) {
-                                // user is in between library and current building
-                                int diffX = Math.abs(currBuildX - refBuildX);
-                                int diffY = Math.abs(currBuildY - refBuildY);
-
-                                double deltaLat = Math.abs(currBuildLat - refLatitude);
-                                double deltaLon = Math.abs(currBuildLong - refLongitude);
-
-                                double latitudePerPixel = (((deltaLat / diffX) + (deltaLat / diffY)) / 2);
-                                double longitudePerPixel = (((deltaLon / diffX) + (deltaLon / diffY)) / 2);
-
-                                final int relativeX = (int) ((refLatitude - userLatitude) / latitudePerPixel);
-                                final int relativeY = (int) ((refLongitude - userLongitude) / longitudePerPixel);
-
+                            // user marker invisible
+                            if (userOutOfUniv) {
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        ImageView uLocation = (ImageView) findViewById(R.id.userMarker);
+                                        uLocation.setVisibility(View.VISIBLE);
+                                    }
+                                });
+                            } else {
+                                final int relativeX = currX;
+                                final int relativeY = currY;
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
@@ -388,36 +415,22 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
                                         imm.hideSoftInputFromWindow(searchView.getWindowToken(), 0);
                                     }
                                 });
-
-                                userOutOfUniv = false;
-                                break;
                             }
                         }
                     }
+                } else if (!gpsTrackerPrompted && !gpsTracker.permissionFailed) {
+                    // can't get location
+                    // GPS or Network is not enabled
+                    // Ask user to enable GPS/network in settings
+                    gpsTrackerPrompted = true;
 
-                    // user marker invisible
-                    if (userOutOfUniv) {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                ImageView uLocation = (ImageView) findViewById(R.id.userMarker);
-                                uLocation.setVisibility(View.VISIBLE);
-                            }
-                        });
-                    }
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            gpsTracker.showSettingsAlert();
+                        }
+                    });
                 }
-            } else if(!gpsTrackerPrompted && !gpsTracker.permissionFailed) {
-                // can't get location
-                // GPS or Network is not enabled
-                // Ask user to enable GPS/network in settings
-                gpsTrackerPrompted = true;
-
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        gpsTracker.showSettingsAlert();
-                    }
-                });
             }
 
             if (!markerCleared && (searchString == null || searchString.length() < 1)) {
@@ -431,8 +444,7 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
                         bLocation.setVisibility(View.INVISIBLE);
                     }
                 });
-            }
-            else if (searchString != null && !searchString.equals(prevString)) {
+            } else if (searchString != null && !searchString.equals(prevString)) {
                 searchString = searchString.toUpperCase();
                 prevString = searchString;
 
