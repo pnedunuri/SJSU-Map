@@ -637,7 +637,10 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
             intent.putExtra("distance",distance);
             intent.putExtra("duration",duration);
             intent.putExtra("imageName",Constants.BUILDING_IMAGE_NAMES[result.getInt("buildingIndex")]);
-
+            double latitude = Constants.LATITUDE_LONGITUDE[result.getInt("buildingIndex")][Constants.LATITUDE_INDEX];
+            double longitude = Constants.LATITUDE_LONGITUDE[result.getInt("buildingIndex")][Constants.LONGITUDE_INDEX];
+            intent.putExtra("latitude",latitude);
+            intent.putExtra("longitude",longitude);
             startActivity(intent);
         } catch(Exception e) {
             Log.d("Exception",e+"");

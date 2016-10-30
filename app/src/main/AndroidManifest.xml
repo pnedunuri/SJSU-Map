@@ -38,7 +38,11 @@
                 android:name="android.app.searchable"
                 android:resource="@xml/searchable" />
         </activity>
-        <activity android:name=".BuildingDetailsActivity"></activity>
+        <activity android:name=".BuildingDetailsActivity" />
+        <activity android:name=".StreetViewActivity"></activity>
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyCnHgUH4CAS1Un32zSYJLXhnCqY3nxf2W8"/>
     </application>
 
 </manifest>

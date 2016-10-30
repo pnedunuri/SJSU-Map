@@ -8,6 +8,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -19,13 +21,13 @@ public class BuildingDetailsActivity extends AppCompatActivity {
     TextView address, distance, duration;
     ActionBar actionBar;
     ImageView image;
+    Bundle extras;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_building_details);
-
-        Bundle extras  = getIntent().getExtras();
+        extras  = getIntent().getExtras();
         address = (TextView)findViewById(R.id.address);
         address.setText(extras.getString("address"));
         Log.d("address",extras.getString("address")+"");
@@ -50,10 +52,20 @@ public class BuildingDetailsActivity extends AppCompatActivity {
         }else {
             image.setImageResource(R.drawable.no_image);
         }
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setTitle(extras.getString("name"));
 
-        // home screen button
-        ActionBar actionBar = getSupportActionBar();
-        actionBar.setDisplayHomeAsUpEnabled(true);
+        Button streetViewButton = (Button) findViewById(R.id.streetViewButton);
+        streetViewButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                Intent intent = new Intent(BuildingDetailsActivity.this,StreetViewActivity.class);
+                intent.putExtra("latitude",extras.getDouble("latitude"));
+                intent.putExtra("longitude",extras.getDouble("longitude"));
+                intent.putExtra("name",extras.getString("name"));
+                startActivity(intent);
+            }
+        });
+
     }
 
     @Override
