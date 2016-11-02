@@ -21,6 +21,7 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.ImageView;
@@ -29,37 +30,33 @@ import android.widget.RelativeLayout;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONException;
+import java.util.Random;
 
 public class MapScreenActivity extends AppCompatActivity implements Runnable {
 
     private static final int INTERNET_PERMISSION = 777;
-
-    public static MapScreenActivity me = null;
-
+	private static final double THRESHOLD = 0.0009;
+    private static final double GPS_LOCATION_THRESHOLD = 0.00009;
+    public static volatile MapScreenActivity me = null;
     public static float pxPerInch = 0;
-
     public static float aspectRatio = 0;
-
+    public static volatile String searchString = null;
     private ImageView mapView = null;
     private ImageView invisibleMap = null;
-
     private double buildingCoordinates[][] = null;
-
-    public static volatile String searchString = null;
     private volatile String prevString = null;
-
     private volatile boolean isAppRunning = false;
-
     private volatile GPSTracker gpsTracker = null;
     private volatile boolean gpsTrackerPrompted = false;
     private SearchView searchView = null;
     private volatile boolean markerCleared = false;
-    private static final double THRESHOLD = 0.0009;
-    private static final double GPS_LOCATION_THRESHOLD = 0.00009;
     private volatile Thread mapScreenThread = null;
     private volatile boolean shouldStopThread = false;
     private double previousLatitude = 0;
     private double previousLongitude = 0;
+    private static volatile boolean isCurrentLocationUpdated = false;
+    private double xPerLongitudeChange = 0;
+    private double yPerLatitudeChange = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -130,6 +127,22 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
                 }
             }
 
+//            int leftTopBuildX = (int) buildingCoordinates[Constants.KING_LIB][Constants.LEFT_INDEX];
+//            leftTopBuildX += (buildingCoordinates[Constants.KING_LIB][Constants.RIGHT_INDEX] - leftTopBuildX) / 2;
+//
+//            int rightBottomBuildX = (int) buildingCoordinates[Constants.CVB][Constants.LEFT_INDEX];
+//            int offset = (int) (buildingCoordinates[Constants.CVB][Constants.RIGHT_INDEX] - rightBottomBuildX) / 2;
+//            rightBottomBuildX += offset;
+//
+//            xPerLongitudeChange = (Math.abs(leftTopBuildX - rightBottomBuildX) / Math.abs(Constants.MAP_LAT_LONG[Constants.LEFT_TOP_INDEX][Constants.LONGITUDE_INDEX] - Constants.MAP_LAT_LONG[Constants.RIGHT_BOTTOM_INDEX][Constants.LONGITUDE_INDEX])) * Math.cos(Constants.MAP_VIEWING_ANGLE_RADIANS);
+//
+//            int rightTopBuildY = (int) buildingCoordinates[Constants.NP_GARAGE][Constants.TOP_INDEX];
+//            rightTopBuildY += ((buildingCoordinates[Constants.NP_GARAGE][Constants.DOWN_INDEX] - rightTopBuildY) / 2);
+//
+//            int leftBottomBuildY = (int) buildingCoordinates[Constants.SP_GARAGE][Constants.TOP_INDEX];
+//            leftBottomBuildY += ((buildingCoordinates[Constants.SP_GARAGE][Constants.DOWN_INDEX] - leftBottomBuildY) / 2);
+//
+//            yPerLatitudeChange = (Math.abs(leftBottomBuildY - rightTopBuildY) / Math.abs(Constants.MAP_LAT_LONG[Constants.RIGHT_TOP_INDEX][Constants.LATITUDE_INDEX] - Constants.MAP_LAT_LONG[Constants.LEFT_BOTTOM_INDEX][Constants.LATITUDE_INDEX])) * Math.cos(Constants.MAP_VIEWING_ANGLE_RADIANS) - offset;
             // no use of below code for now
 //            DisplayMetrics metrics = new DisplayMetrics();
 //            getWindowManager().getDefaultDisplay().getMetrics(metrics);
@@ -257,16 +270,22 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
     public void onResume() {
         super.onResume();
 
-        mapScreenThread = new Thread(this);
-        mapScreenThread.start();
-
         gpsTracker = new GPSTracker(this);
+        mapScreenThread = new Thread(this);
+
+        final View view = (ViewGroup) ((ViewGroup) this
+                .findViewById(android.R.id.content)).getChildAt(0);
+        view.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                mapScreenThread.start();
+            }
+        }, 500);
     }
 
-    private int getColour( int x, int y)
-    {
+    private int getColour(int x, int y) {
         ImageView imageView = (ImageView) findViewById(R.id.overlayInvisible);
-        Drawable imgDrawable = ((ImageView)imageView).getDrawable();
+        Drawable imgDrawable = ((ImageView) imageView).getDrawable();
 
         int left = imageView.getLeft();
         int right = imageView.getWidth();
@@ -312,131 +331,136 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
 
             initMap();
 
-            if (gpsTracker == null)
-            {
-                return;
-            }
-
             // fetch location
-            if(gpsTracker.canGetLocation()) {
+            if (gpsTracker.canGetLocation()) {
                 double userLatitude = gpsTracker.getLatitude();
                 double userLongitude = gpsTracker.getLongitude();
-                if ((previousLatitude == 0 || Math.abs(previousLatitude - userLatitude) > THRESHOLD) || (previousLongitude == 0 || Math.abs(previousLongitude - userLongitude) > THRESHOLD)) {
+                if ((!isCurrentLocationUpdated || previousLatitude == 0 || Math.abs(previousLatitude - userLatitude) > THRESHOLD) || (previousLongitude == 0 || Math.abs(previousLongitude - userLongitude) > THRESHOLD)) {
                     previousLatitude = userLatitude;
                     previousLongitude = userLongitude;
+
+                    isCurrentLocationUpdated = false;
 
                     if (userLatitude == 0) {
                         gpsTracker.getLocation();
                     } else {
                         // user location
-                        // TODO: Fix this
-                        int currX = -1;
-                        int currY = -1;
 
-                        int refBuildX = (int) buildingCoordinates[Constants.KING_LIB][Constants.LEFT_INDEX];
-                        refBuildX += (buildingCoordinates[Constants.KING_LIB][Constants.RIGHT_INDEX] - refBuildX) / 2;
+//                        int refBuildX = (int) buildingCoordinates[Constants.KING_LIB][Constants.LEFT_INDEX];
+//                        refBuildX += (buildingCoordinates[Constants.KING_LIB][Constants.RIGHT_INDEX] - refBuildX) / 2;
+//
+//                        int refBuildY = (int) buildingCoordinates[Constants.NP_GARAGE][Constants.TOP_INDEX];
+//                        refBuildY += ((buildingCoordinates[Constants.NP_GARAGE][Constants.DOWN_INDEX] - refBuildY) / 2);
+//
+//                        final int userX = refBuildX + (int) (xPerLongitudeChange * (Math.abs(Constants.MAP_LAT_LONG[Constants.LEFT_TOP_INDEX][Constants.LONGITUDE_INDEX] - userLongitude)));
+//                        final int userY = refBuildY + (int) (yPerLatitudeChange * (Math.abs(Constants.MAP_LAT_LONG[Constants.RIGHT_TOP_INDEX][Constants.LATITUDE_INDEX]- userLatitude)));
 
-                        int refBuildY = (int) buildingCoordinates[Constants.KING_LIB][Constants.TOP_INDEX];
-                        refBuildY += ((buildingCoordinates[Constants.KING_LIB][Constants.DOWN_INDEX] - refBuildY) / 2);
-
-                        double refLatitude = Constants.LATITUDE_LONGITUDE[Constants.KING_LIB][Constants.LATITUDE_INDEX];
-                        double refLongitude = Constants.LATITUDE_LONGITUDE[Constants.KING_LIB][Constants.LONGITUDE_INDEX];
-
-                        boolean userOutOfUniv = true;
-
-                        if (!(userLatitude > refLatitude && userLongitude < refLongitude)) {
-                            for (int bIndex = 0; bIndex < Constants.LATITUDE_LONGITUDE.length; bIndex++) {
-                                if (bIndex == Constants.KING_LIB) {
-                                    continue;
+                        int buildingIndex = -1;
+                        for (int bIndex = 0; bIndex < Constants.NO_OF_BUILDINGS; bIndex++) {
+                            // latitide check
+                            boolean rightLT = false;
+                            boolean bottomLT = false;
+                            if (userLatitude > Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.LEFT_TOP_INDEX][Constants.LATITUDE_INDEX]) {
+                                if (userLongitude > Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.LEFT_TOP_INDEX][Constants.LONGITUDE_INDEX]) {
+                                    rightLT = true;
                                 }
+                            } else if (userLongitude > Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.LEFT_TOP_INDEX][Constants.LONGITUDE_INDEX]) {
+                                bottomLT = true;
+                            }
 
-                                double currBuildLat = Constants.LATITUDE_LONGITUDE[bIndex][Constants.LATITUDE_INDEX];
-                                double currBuildLong = Constants.LATITUDE_LONGITUDE[bIndex][Constants.LONGITUDE_INDEX];
-
-                                int currBuildX = (int) buildingCoordinates[bIndex][Constants.LEFT_INDEX];
-                                currBuildX += (buildingCoordinates[bIndex][Constants.RIGHT_INDEX] - currBuildX) / 2;
-
-                                int currBuildY = (int) buildingCoordinates[bIndex][Constants.TOP_INDEX];
-                                currBuildY += ((buildingCoordinates[bIndex][Constants.DOWN_INDEX] - currBuildY) / 2);
-
-                                if (Math.abs(currBuildLat - userLatitude) < GPS_LOCATION_THRESHOLD && Math.abs(currBuildLong - userLongitude) < GPS_LOCATION_THRESHOLD) {
-                                    currX = currBuildX;
-                                    currY = currBuildY;
-
-                                    userOutOfUniv = false;
-                                    break;
-                                } else if (userLatitude > currBuildLat && userLongitude < currBuildLong) {
-                                    // user is in between library and current building
-                                    int diffX = Math.abs(currBuildX - refBuildX);
-                                    int diffY = Math.abs(currBuildY - refBuildY);
-
-                                    double deltaLat = Math.abs(currBuildLat - refLatitude);
-                                    double deltaLon = Math.abs(currBuildLong - refLongitude);
-
-                                    double latitudePerPixel = (((deltaLat / diffX) + (deltaLat / diffY)) / 2);
-                                    double longitudePerPixel = (((deltaLon / diffX) + (deltaLon / diffY)) / 2);
-
-//                                    currX = refBuildX + ((int) Math.abs((refLatitude - userLatitude) / latitudePerPixel));
-//                                    currY = refBuildY + ((int) Math.abs((refLongitude - userLongitude) / longitudePerPixel));
-
-                                    int tempXLat = refBuildX + (int) ((refLatitude - userLatitude) / latitudePerPixel);
-                                    int tempXLong = refBuildX + (int) ((refLongitude - userLongitude) / longitudePerPixel);
-                                    currX = tempXLat + (int) (tempXLong / 10);
-
-                                    int tempYLat = refBuildY + (int) ((refLatitude - userLatitude) / latitudePerPixel);
-                                    int tempYLong = refBuildY + (int) ((refLongitude - userLongitude) / longitudePerPixel);
-                                    currY = tempYLat + (int) (tempYLong / 10);
-
-                                    userOutOfUniv = false;
-                                    break;
+                            boolean leftRT = false;
+                            boolean bottomRT = false;
+                            if (userLatitude < Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.RIGHT_TOP_INDEX][Constants.LATITUDE_INDEX]) {
+                                if (userLongitude > Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.RIGHT_TOP_INDEX][Constants.LONGITUDE_INDEX]) {
+                                    bottomRT = true;
+                                } else {
+                                    leftRT = true;
                                 }
                             }
 
-                            // user marker invisible
-                            if (userOutOfUniv) {
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        ImageView uLocation = (ImageView) findViewById(R.id.userMarker);
-                                        uLocation.setVisibility(View.VISIBLE);
-                                    }
-                                });
-                            } else {
-                                final int relativeX = currX;
-                                final int relativeY = currY;
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        RelativeLayout rl = (RelativeLayout) findViewById(R.id.activity_map_screen);
-
-                                        ImageView uLocation = (ImageView) findViewById(R.id.userMarker);
-                                        rl.removeView(uLocation);
-
-                                        uLocation.setVisibility(View.VISIBLE);
-
-                                        RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(uLocation.getWidth(), uLocation.getHeight());
-
-                                        params.leftMargin = relativeX;
-                                        params.topMargin = relativeY;
-
-                                        rl.addView(uLocation, params);
-
-                                        searchView.clearFocus();
-                                        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-                                        imm.hideSoftInputFromWindow(searchView.getWindowToken(), 0);
-                                    }
-                                });
+                            boolean topLB = false;
+                            boolean rightLB = false;
+                            if (userLatitude > Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.LEFT_BOTTOM_INDEX][Constants.LATITUDE_INDEX]) {
+                                if (userLongitude > Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.LEFT_BOTTOM_INDEX][Constants.LONGITUDE_INDEX]) {
+                                    rightLB = true;
+                                } else {
+                                    topLB = true;
+                                }
                             }
+
+                            boolean leftRB = false;
+                            boolean topRB = false;
+                            if (userLatitude > Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.RIGHT_BOTTOM_INDEX][Constants.LATITUDE_INDEX]) {
+                                if (userLongitude < Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.RIGHT_BOTTOM_INDEX][Constants.LONGITUDE_INDEX]) {
+                                    topRB = true;
+                                }
+                            } else if (userLongitude < Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.RIGHT_BOTTOM_INDEX][Constants.LONGITUDE_INDEX]) {
+                                leftRB = true;
+                            }
+
+                            if ((rightLT || bottomLT) && (leftRT || bottomRT) && (rightLB || topLB) && (leftRB || topRB)) {
+                                buildingIndex = bIndex;
+
+                                break;
+                            }
+
+//                            if ((userLatitude > Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.LEFT_TOP_INDEX][Constants.LATITUDE_INDEX] && userLatitude < Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.RIGHT_TOP_INDEX][Constants.LATITUDE_INDEX]) || (userLatitude < Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.LEFT_TOP_INDEX][Constants.LATITUDE_INDEX] && userLatitude > Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.LEFT_BOTTOM_INDEX][Constants.LATITUDE_INDEX]) || (userLatitude < Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.RIGHT_TOP_INDEX][Constants.LATITUDE_INDEX] && userLatitude > Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.RIGHT_BOTTOM_INDEX][Constants.LATITUDE_INDEX]) || (userLatitude > Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.LEFT_BOTTOM_INDEX][Constants.LATITUDE_INDEX] && userLatitude < Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.RIGHT_BOTTOM_INDEX][Constants.LATITUDE_INDEX])) {
+//                                if ((userLongitude > Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.LEFT_TOP_INDEX][Constants.LONGITUDE_INDEX] && userLongitude < Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.RIGHT_TOP_INDEX][Constants.LONGITUDE_INDEX]) || (userLongitude > Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.LEFT_TOP_INDEX][Constants.LONGITUDE_INDEX] && userLongitude < Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.LEFT_BOTTOM_INDEX][Constants.LONGITUDE_INDEX]) || (userLongitude > Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.RIGHT_TOP_INDEX][Constants.LONGITUDE_INDEX] && userLongitude < Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.RIGHT_BOTTOM_INDEX][Constants.LONGITUDE_INDEX]) || (userLongitude > Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.LEFT_BOTTOM_INDEX][Constants.LONGITUDE_INDEX] && userLongitude < Constants.BUILDINGS_SURROUNDING_LAT_LONG[bIndex][Constants.RIGHT_BOTTOM_INDEX][Constants.LONGITUDE_INDEX])) {
+//                                    buildingIndex = Constants.TOWER_HALL_BACK_SIDE;
+//
+//                                    break;
+//                                }
+//                            }
                         }
+
+                        if (buildingIndex == -1) {
+                            buildingIndex = new Random().nextInt(Constants.NO_OF_BUILDINGS);
+                        }
+
+                        int refBuildX = (int) buildingCoordinates[buildingIndex][Constants.LEFT_INDEX];
+                        refBuildX += (buildingCoordinates[buildingIndex][Constants.RIGHT_INDEX] - refBuildX) / 2;
+
+                        int refBuildY = (int) buildingCoordinates[buildingIndex][Constants.TOP_INDEX];
+                        refBuildY += ((buildingCoordinates[buildingIndex][Constants.DOWN_INDEX] - refBuildY) / 2);
+
+                        final int userX = refBuildX;
+                        final int userY = refBuildY;
+
+                        MapScreenActivity.me.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                RelativeLayout rl = (RelativeLayout) findViewById(R.id.activity_map_screen);
+
+                                ImageView uLocation = (ImageView) findViewById(R.id.userMarker);
+                                rl.removeView(uLocation);
+
+                                uLocation.setVisibility(View.VISIBLE);
+
+                                RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(uLocation.getWidth(), uLocation.getHeight());
+
+                                params.leftMargin = userX;
+                                params.topMargin = userY - (uLocation.getHeight() >> 1);
+
+                                rl.addView(uLocation, params);
+
+                                searchView.clearFocus();
+                                InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                                imm.hideSoftInputFromWindow(searchView.getWindowToken(), 0);
+
+                                isCurrentLocationUpdated = true;
+                            }
+                        });
+
+                        Thread.yield();
                     }
                 }
-            }else if (!gpsTrackerPrompted && !gpsTracker.permissionFailed) {
+            } else if (!gpsTrackerPrompted && !gpsTracker.permissionFailed) {
                 // can't get location
                 // GPS or Network is not enabled
                 // Ask user to enable GPS/network in settings
                 gpsTrackerPrompted = true;
 
-                runOnUiThread(new Runnable() {
+                MapScreenActivity.me.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         gpsTracker.showSettingsAlert();
@@ -448,7 +472,7 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
                 markerCleared = true;
 
                 // remove the marker
-                runOnUiThread(new Runnable() {
+                MapScreenActivity.me.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         ImageView bLocation = (ImageView) findViewById(R.id.destinationMarker);
@@ -465,7 +489,7 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
                         final int index = bIndex;
                         markerCleared = false;
 
-                        runOnUiThread(new Runnable() {
+                        MapScreenActivity.me.runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
                                 RelativeLayout rl = (RelativeLayout) findViewById(R.id.activity_map_screen);
@@ -523,7 +547,7 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
     }
 
     public void notifyThread() {
-        try{
+        try {
             synchronized (mapScreenThread) {
                 mapScreenThread.notify();
             }
@@ -534,7 +558,6 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
     }
 
     class ImageTouchListener implements View.OnTouchListener {
-        Boolean permissionFailed;
         @Override
         public boolean onTouch(View v, MotionEvent event) {
             if (event.getAction() == MotionEvent.ACTION_UP) {
@@ -546,7 +569,7 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
                     return true;
                 }
 
-                int [] colors = new int[Constants.NUM_COLOR_INDEXES];
+                int[] colors = new int[Constants.NUM_COLOR_INDEXES];
 
                 int red = Color.red(pixel);
                 colors[Constants.RED_COLOR_INDEX] = red;
@@ -558,7 +581,7 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
                 colors[Constants.BLUE_COLOR_INDEX] = blue;
 
                 int buildingIndex = -1;
-                for(int index = 0; index < Constants.NO_OF_BUILDINGS; index++) {
+                for (int index = 0; index < Constants.NO_OF_BUILDINGS; index++) {
                     boolean buildingIdentified = true;
                     for (int cIndex = 0; cIndex < Constants.NUM_COLOR_INDEXES; cIndex++) {
                         if (!checkColorWithTolerance(Constants.BUILDINGS_COLOR_VALUES[index][cIndex], colors[cIndex], 15)) {
@@ -579,7 +602,7 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
                     final int buildingIndexCopy = buildingIndex;
                     stopThread();
 
-                    runOnUiThread(new Runnable() {
+                    MapScreenActivity.me.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
                             new GeoLocationFetcher().execute(buildingIndexCopy);
@@ -601,7 +624,7 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
                 double userLatitude = gpsTracker.getLatitude();
                 double userLongitude = gpsTracker.getLongitude();
                 String usrLoc = userLatitude + "," + userLongitude;
-                String destLoc= Constants.LATITUDE_LONGITUDE[buildingIndex[0]][Constants.LATITUDE_INDEX] + "," + Constants.LATITUDE_LONGITUDE[buildingIndex[0]][Constants.LONGITUDE_INDEX];
+                String destLoc = Constants.LATITUDE_LONGITUDE[buildingIndex[0]][Constants.LATITUDE_INDEX] + "," + Constants.LATITUDE_LONGITUDE[buildingIndex[0]][Constants.LONGITUDE_INDEX];
                 query = query.replace("usrLoc", usrLoc);
                 query = query.replace("destLoc", destLoc);
 
@@ -609,7 +632,7 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
                 try {
                     obj = new JSONObject(response);
                     obj.put("buildingIndex", buildingIndex[0].intValue());
-                } catch(Exception e) {
+                } catch (Exception e) {
 
                 }
                 return obj;
