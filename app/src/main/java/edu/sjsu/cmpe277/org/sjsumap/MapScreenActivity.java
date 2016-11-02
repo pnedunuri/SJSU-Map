@@ -1,14 +1,17 @@
 package edu.sjsu.cmpe277.org.sjsumap;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.SearchManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
+import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.SearchView;
@@ -28,6 +31,8 @@ import org.json.JSONObject;
 import org.json.JSONException;
 
 public class MapScreenActivity extends AppCompatActivity implements Runnable {
+
+    private static final int INTERNET_PERMISSION = 777;
 
     public static MapScreenActivity me = null;
 
@@ -289,6 +294,12 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
     @Override
     public void run() {
         while(isAppRunning) {
+            // check for permission
+            if (ActivityCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
+                Log.d("LOCATION", "Permissions are not given for GPS");
+                ActivityCompat.requestPermissions(MapScreenActivity.me, new String[]{Manifest.permission.INTERNET}, INTERNET_PERMISSION);
+            }
+
             if (shouldStopThread)  {
                 try {
                     synchronized (mapScreenThread) {
@@ -418,19 +429,19 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
                             }
                         }
                     }
-                } else if (!gpsTrackerPrompted && !gpsTracker.permissionFailed) {
-                    // can't get location
-                    // GPS or Network is not enabled
-                    // Ask user to enable GPS/network in settings
-                    gpsTrackerPrompted = true;
-
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            gpsTracker.showSettingsAlert();
-                        }
-                    });
                 }
+            }else if (!gpsTrackerPrompted && !gpsTracker.permissionFailed) {
+                // can't get location
+                // GPS or Network is not enabled
+                // Ask user to enable GPS/network in settings
+                gpsTrackerPrompted = true;
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        gpsTracker.showSettingsAlert();
+                    }
+                });
             }
 
             if (!markerCleared && (searchString == null || searchString.length() < 1)) {
@@ -491,6 +502,15 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
         }
     }
 
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case INTERNET_PERMISSION:
+            {
+            }
+            break;
+        }
+    }
+
     @Override
     public void onDestroy() {
         super.onDestroy();
@@ -514,7 +534,7 @@ public class MapScreenActivity extends AppCompatActivity implements Runnable {
     }
 
     class ImageTouchListener implements View.OnTouchListener {
-
+        Boolean permissionFailed;
         @Override
         public boolean onTouch(View v, MotionEvent event) {
             if (event.getAction() == MotionEvent.ACTION_UP) {
